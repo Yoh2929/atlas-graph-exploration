@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .atlas-input {
+    @apply rounded-xl border border-border bg-bg px-4 py-3 text-sm text-ink outline-none placeholder:text-ink-dim focus:border-category-algorithm;
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    background: #070a10;
+  }
+
+  ::selection {
+    background-color: #7c9cf566;
+  }
+
+
+  canvas {
+    outline: none !important;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #232b3d transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid #7c9cf5;
+    outline-offset: 2px;
+  }
+}
+
+.atlas-graph {
+  background:
+    radial-gradient(circle at 72% 22%, rgba(105, 139, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 28% 74%, rgba(84, 215, 183, 0.07), transparent 32%),
+    radial-gradient(circle at 52% 52%, #101725 0%, #090d15 53%, #05070b 100%);
+}
+
+.atlas-graph::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  background-image: radial-gradient(rgba(255,255,255,.55) .55px, transparent .7px);
+  background-size: 31px 31px;
+  mask-image: radial-gradient(circle, transparent 5%, black 70%);
+}
+
+@keyframes graphReveal {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
