@@ -59,7 +59,7 @@ export default function ResizableDetailPanel({ children, onClose }: Props) {
         aria-label="Fermer la fiche"
         title="Fermer (Échap)"
         onClick={onClose}
-        className="absolute right-3 top-3 z-50 grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-[#090d15]/85 text-sm text-white shadow-xl backdrop-blur-xl hover:bg-[#1b2435] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9eb5ff]"
+        className="absolute right-3 top-[84px] z-50 grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-[#090d15]/90 text-sm text-white shadow-xl backdrop-blur-xl hover:bg-[#1b2435] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9eb5ff]"
       >
         ✕
       </button>

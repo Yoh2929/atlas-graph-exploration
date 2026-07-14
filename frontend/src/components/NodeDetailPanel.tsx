@@ -59,10 +59,6 @@ export default function NodeDetailPanel({ nodeId, user, onSelectNode, favorite =
       ].join(" ")).includes(query);
     });
   }, [relationCategory, relationQuery, rows]);
-  const people = filteredRows.filter((item) => item.category === "person");
-  const concepts = filteredRows.filter((item) => item.category !== "person");
-  const totalPeople = rows.filter((item) => item.category === "person").length;
-  const totalConcepts = rows.length - totalPeople;
 
   if (loading || !node) {
     return <aside className="grid h-full place-items-center border-l border-white/10 bg-surface"><div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-category-algorithm" /></aside>;
@@ -156,8 +152,13 @@ export default function NodeDetailPanel({ nodeId, user, onSelectNode, favorite =
           </section>
         )}
 
-        {(people.length > 0 || ((!relationQuery && relationCategory === "all") && totalPeople > 0)) && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-category-person">Personnes associées</p><span className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? `${people.length} / ${totalPeople}` : people.length}</span></div>{people.length ? <RelationList items={people} /> : <p className="text-xs text-ink-dim">Aucune personne ne correspond au filtre.</p>}</section>}
-        {relationCategory !== "person" && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Idées connectées</p><span className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? `${concepts.length} / ${totalConcepts}` : concepts.length}</span></div>{concepts.length ? <RelationList items={concepts} /> : <p className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? "Aucune idée ne correspond au filtre." : "Aucune autre relation fiable."}</p>}</section>}
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Connexions</p>
+            <span className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? `${filteredRows.length} / ${rows.length}` : rows.length}</span>
+          </div>
+          {filteredRows.length ? <RelationList items={filteredRows} /> : <p className="text-xs text-ink-dim">Aucune connexion ne correspond au filtre.</p>}
+        </section>
 
       </div>
     </aside>
