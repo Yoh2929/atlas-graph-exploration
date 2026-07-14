@@ -45,6 +45,18 @@ Le seed normal n'impose aucune limite globale de nœuds ou de relations. Son
 périmètre reste défini par les racines et la profondeur Wikipedia. `-SeedLimit`
 sert uniquement à demander volontairement un corpus borné.
 
+## Publication du snapshot vers AuraDB
+
+Renseignez les accès AuraDB et Neon dans `backend/.env`, puis publiez le dernier
+snapshot local sans refaire le scraping :
+
+```powershell
+.\publish-cloud.ps1
+.\publish-cloud.ps1 -SkipBuild # réutilise l'image backend existante
+```
+
+L'import est envoyé par lots et peut être relancé sans créer de doublons.
+
 ## Expérience de navigation
 
 - recherche plein graphe ;
