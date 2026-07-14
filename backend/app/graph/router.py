@@ -61,11 +61,16 @@ def get_biography(node_id: str, session: Neo4jSession = Depends(get_neo4j_sessio
 
 @router.get("/search", response_model=list[NodeOut])
 def search(
-    q: str = Query(min_length=1, max_length=180),
+    q: str = Query("", max_length=180),
+    category: Optional[str] = Query(None),
     limit: int = Query(150, ge=1, le=500),
     session: Neo4jSession = Depends(get_neo4j_session),
 ):
-    return repo.search_nodes(session, q, limit=limit)
+    if category is not None and category not in repo.VALID_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Thème inconnu")
+    if not q.strip() and category is None:
+        return []
+    return repo.search_nodes(session, q.strip(), category=category, limit=limit)
 
 
 @router.post("/nodes", response_model=NodeOut)

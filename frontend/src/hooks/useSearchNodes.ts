@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { searchNodes } from "../api/search.api";
 
 import type { GraphNode } from "../types";
+import type { Category } from "../types";
 
-export function useSearchNodes(query: string) {
+export function useSearchNodes(query: string, category?: Category) {
 
   const [results, setResults] = useState<GraphNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -12,7 +13,7 @@ export function useSearchNodes(query: string) {
   useEffect(() => {
     let cancelled = false;
 
-    if (query.trim().length < 2) {
+    if (query.trim().length < 2 && !category) {
       setResults([]);
       setLoading(false);
       return;
@@ -27,7 +28,8 @@ export function useSearchNodes(query: string) {
       try {
 
         const nodes = await searchNodes(
-          query.trim()
+          query.trim(),
+          category,
         );
 
         if (!cancelled) setResults(nodes);
@@ -50,7 +52,7 @@ export function useSearchNodes(query: string) {
       clearTimeout(timeout);
     };
 
-  }, [query]);
+  }, [query, category]);
 
 
   return {

@@ -6,6 +6,7 @@ import GraphCanvas3D from "./components/GraphCanvas3D";
 import GraphControls from "./components/GraphControls";
 import LibraryPanel from "./components/LibraryPanel";
 import NodeDetailPanel from "./components/NodeDetailPanel";
+import ResizableDetailPanel from "./components/ResizableDetailPanel";
 import SearchBar from "./components/SearchBar";
 import WelcomePanel from "./components/WelcomePanel";
 import { useAuth } from "./hooks/useAuth";
@@ -45,7 +46,7 @@ export default function App() {
       {error && <div className="absolute inset-0 z-10 grid place-items-center text-sm text-ink-dim">{error}</div>}
       {!error && graphLoading && <div className="absolute inset-0 z-10 grid place-items-center bg-bg"><div className="text-center"><div className="mx-auto h-12 w-12 animate-spin rounded-full border border-white/10 border-t-category-algorithm"/><p className="mt-5 font-display text-xl">Ouverture du champ de connaissance…</p><p className="mt-1 text-xs text-ink-dim">Chargement du premier lot</p></div></div>}
       {graph && <><GraphCanvas3D data={graph} selectedId={selectedId} focusIds={focusIds} favoriteIds={favorites.ids} onSelectNode={handleSelectNode}/><GraphControls lensLabel={lensLabel} onClearLens={clearLens} onGenerate={surprise} loaded={graph.loaded ?? graph.nodes.length} offset={graph.offset ?? 0} total={graph.total} hasMore={!!graph.has_more} loadingMore={loadingMore} onNext={() => { setSelectedId(null); clearLens(); nextPage(); }} onPrevious={() => { setSelectedId(null); clearLens(); previousPage(); }}/>{!selectedId&&!lensLabel&&<WelcomePanel onSearch={() => document.getElementById("atlas-search")?.focus()} onDrift={surprise}/>}</>}
-      {selectedId && <div className="absolute inset-0 z-30 shadow-[-24px_0_60px_rgba(0,0,0,.28)] sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[430px]"><NodeDetailPanel nodeId={selectedId} user={auth.user} favorite={favorites.ids.has(selectedId)} onToggleFavorite={() => { if (auth.user) void favorites.toggle(selectedId); else setShowAuth(true); }} onSelectNode={handleSelectNode} onClose={() => setSelectedId(null)}/></div>}
+      {selectedId && <ResizableDetailPanel onClose={() => setSelectedId(null)}><NodeDetailPanel key={selectedId} nodeId={selectedId} user={auth.user} favorite={favorites.ids.has(selectedId)} onToggleFavorite={() => { if (auth.user) void favorites.toggle(selectedId); else setShowAuth(true); }} onSelectNode={handleSelectNode}/></ResizableDetailPanel>}
     </main>
     <LibraryPanel open={showLibrary} onClose={() => setShowLibrary(false)} favorites={favoriteNodes} recent={recentNodes} signedIn={!!auth.user} onSelect={(id) => { handleSelectNode(id); setShowLibrary(false); }} onRemove={(id) => void favorites.toggle(id)} onLogin={() => { setShowLibrary(false); setShowAuth(true); }}/>
     {showAuth && <AuthModal onLogin={auth.login} onRegister={auth.register} onClose={() => setShowAuth(false)}/>} {showAccount&&auth.user&&<AccountPanel user={auth.user} onClose={() => setShowAccount(false)} onLogout={auth.logout} onUpdateProfile={auth.updateProfile} onChangePassword={auth.changePassword}/>} 

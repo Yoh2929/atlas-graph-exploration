@@ -4,14 +4,13 @@ import { CATEGORY_COLORS } from "../constants";
 import { useBiography } from "../hooks/useBiography";
 import { useNode } from "../hooks/useNode";
 import { CATEGORY_LABELS } from "../types";
-import type { SourceLink, User } from "../types";
+import type { Category, SourceLink, User } from "../types";
 import MathText from "./MathText";
 
 interface Props {
   nodeId: string;
   user: User | null;
   onSelectNode: (id: string) => void;
-  onClose: () => void;
   favorite?: boolean;
   onToggleFavorite?: () => void;
 }
@@ -30,28 +29,36 @@ const normalize = (value: string) => value
   .replace(/[\u0300-\u036f]/g, "")
   .toLocaleLowerCase("fr");
 
-export default function NodeDetailPanel({ nodeId, user, onSelectNode, onClose, favorite = false, onToggleFavorite }: Props) {
+export default function NodeDetailPanel({ nodeId, user, onSelectNode, favorite = false, onToggleFavorite }: Props) {
   const { node, neighbors, loading } = useNode(nodeId);
   const { biography, loading: biographyLoading } = useBiography(nodeId);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [relationQuery, setRelationQuery] = useState("");
+  const [relationCategory, setRelationCategory] = useState<Category | "all">("all");
 
   useEffect(() => {
     setBioExpanded(false);
     setRelationQuery("");
+    setRelationCategory("all");
   }, [nodeId]);
 
   const rows = neighbors as NeighborRow[];
+  const availableCategories = useMemo(() => [...new Set(
+    rows.map((item) => item.category).filter((value): value is Category => !!value && value in CATEGORY_LABELS),
+  )], [rows]);
   const filteredRows = useMemo(() => {
     const query = normalize(relationQuery.trim());
-    if (!query) return rows;
-    return rows.filter((item) => normalize([
-      item.label,
-      item.displayRelationLabel,
-      item.relation,
-      item.category || "",
-    ].join(" ")).includes(query));
-  }, [relationQuery, rows]);
+    return rows.filter((item) => {
+      if (relationCategory !== "all" && item.category !== relationCategory) return false;
+      if (!query) return true;
+      return normalize([
+        item.label,
+        item.displayRelationLabel,
+        item.relation,
+        item.category ? CATEGORY_LABELS[item.category as Category] : "",
+      ].join(" ")).includes(query);
+    });
+  }, [relationCategory, relationQuery, rows]);
   const people = filteredRows.filter((item) => item.category === "person");
   const concepts = filteredRows.filter((item) => item.category !== "person");
   const totalPeople = rows.filter((item) => item.category === "person").length;
@@ -95,7 +102,6 @@ export default function NodeDetailPanel({ nodeId, user, onSelectNode, onClose, f
           <span className="rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider" style={{ borderColor: `${color}55`, backgroundColor: `${color}14`, color }}>{CATEGORY_LABELS[node.category]}</span>
           <div className="flex gap-1">
             <button aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"} onClick={onToggleFavorite} title={user ? "Enregistrer ce repère" : "Connectez-vous pour enregistrer ce repère"} className={`rounded-lg p-2 text-lg hover:bg-white/5 ${favorite ? "text-[#ffd166]" : "text-ink-dim"}`}>{favorite ? "★" : "☆"}</button>
-            <button aria-label="Fermer la fiche" onClick={onClose} className="rounded-lg px-2.5 py-2 text-sm text-ink-dim hover:bg-white/5 hover:text-ink">✕</button>
           </div>
         </div>
         <h2 className="text-balance font-display text-[28px] leading-tight">{node.label}</h2>
@@ -136,14 +142,22 @@ export default function NodeDetailPanel({ nodeId, user, onSelectNode, onClose, f
                 <button onClick={() => setRelationQuery("")} aria-label="Effacer le filtre" className="rounded-md px-1.5 py-1 text-xs text-ink-dim hover:bg-white/10 hover:text-white">✕</button>
               )}
             </div>
-            {relationQuery && (
+            {availableCategories.length > 1 && (
+              <div className="mt-2 flex gap-1 overflow-x-auto px-1 pb-0.5">
+                <button onClick={() => setRelationCategory("all")} className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] ${relationCategory === "all" ? "bg-white text-[#111521]" : "bg-white/[.05] text-ink-dim hover:text-white"}`}>Tout</button>
+                {availableCategories.map((category) => (
+                  <button key={category} onClick={() => setRelationCategory(category)} className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] ${relationCategory === category ? "text-[#111521]" : "bg-white/[.05] text-ink-dim hover:text-white"}`} style={relationCategory === category ? { backgroundColor: CATEGORY_COLORS[category] } : undefined}>{CATEGORY_LABELS[category]}</button>
+                ))}
+              </div>
+            )}
+            {(relationQuery || relationCategory !== "all") && (
               <p className="px-2 pt-2 text-[10px] text-ink-dim">{filteredRows.length} connexion{filteredRows.length > 1 ? "s" : ""} trouvée{filteredRows.length > 1 ? "s" : ""}</p>
             )}
           </section>
         )}
 
-        {(people.length > 0 || (!relationQuery && totalPeople > 0)) && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-category-person">Personnes associées</p><span className="text-xs text-ink-dim">{relationQuery ? `${people.length} / ${totalPeople}` : people.length}</span></div>{people.length ? <RelationList items={people} /> : <p className="text-xs text-ink-dim">Aucune personne ne correspond au filtre.</p>}</section>}
-        <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Idées connectées</p><span className="text-xs text-ink-dim">{relationQuery ? `${concepts.length} / ${totalConcepts}` : concepts.length}</span></div>{concepts.length ? <RelationList items={concepts} /> : <p className="text-xs text-ink-dim">{relationQuery ? "Aucune idée ne correspond au filtre." : "Aucune autre relation fiable."}</p>}</section>
+        {(people.length > 0 || ((!relationQuery && relationCategory === "all") && totalPeople > 0)) && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-category-person">Personnes associées</p><span className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? `${people.length} / ${totalPeople}` : people.length}</span></div>{people.length ? <RelationList items={people} /> : <p className="text-xs text-ink-dim">Aucune personne ne correspond au filtre.</p>}</section>}
+        {relationCategory !== "person" && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Idées connectées</p><span className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? `${concepts.length} / ${totalConcepts}` : concepts.length}</span></div>{concepts.length ? <RelationList items={concepts} /> : <p className="text-xs text-ink-dim">{relationQuery || relationCategory !== "all" ? "Aucune idée ne correspond au filtre." : "Aucune autre relation fiable."}</p>}</section>}
 
       </div>
     </aside>

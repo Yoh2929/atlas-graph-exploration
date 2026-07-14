@@ -1,19 +1,22 @@
 import { useState } from "react";
 
 import { useSearchNodes } from "../hooks/useSearchNodes";
-import type { GraphNode } from "../types";
+import { CATEGORY_LABELS } from "../types";
+import type { Category, GraphNode } from "../types";
 
 interface Props {
   onSelectNode: (id: string) => void;
 }
 
 const MAX_VISIBLE_RESULTS = 80;
+const CATEGORIES = Object.entries(CATEGORY_LABELS) as [Category, string][];
 
 export default function SearchBar({ onSelectNode }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const { results, loading } = useSearchNodes(query);
+  const [category, setCategory] = useState<Category | "all">("all");
+  const { results, loading } = useSearchNodes(query, category === "all" ? undefined : category);
   const visibleResults = results.slice(0, MAX_VISIBLE_RESULTS);
 
   function update(value: string) {
@@ -37,7 +40,11 @@ export default function SearchBar({ onSelectNode }: Props) {
           value={query}
           onChange={(event) => update(event.target.value)}
           onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 160)}
+          onBlur={(event) => {
+            if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node | null)) {
+              window.setTimeout(() => setOpen(false), 160);
+            }
+          }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
               event.preventDefault();
@@ -61,12 +68,27 @@ export default function SearchBar({ onSelectNode }: Props) {
         ) : (
           <kbd className="hidden rounded-md border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-ink-dim sm:block">/</kbd>
         )}
+        <label htmlFor="atlas-theme" className="sr-only">Filtrer par thème</label>
+        <select
+          id="atlas-theme"
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value as Category | "all");
+            setOpen(true);
+            setCursor(0);
+          }}
+          onFocus={() => setOpen(true)}
+          className="ml-2 max-w-[112px] border-l border-white/10 bg-transparent py-1 pl-2 text-[10px] text-[#cbd3e4] outline-none sm:max-w-[150px] sm:text-xs"
+        >
+          <option value="all" className="bg-[#111827]">Tous les thèmes</option>
+          {CATEGORIES.map(([value, label]) => <option key={value} value={value} className="bg-[#111827]">{label}</option>)}
+        </select>
       </div>
 
-      {open && query.trim().length >= 2 && (
+      {open && (query.trim().length >= 2 || category !== "all") && (
         <div className="absolute left-0 right-0 top-14 z-50 overflow-hidden rounded-2xl border border-white/10 bg-[#111827]/95 shadow-2xl backdrop-blur-2xl">
           <div className="flex items-center justify-between border-b border-white/[.06] px-4 py-3">
-            <span className="font-mono text-[9px] uppercase tracking-[.18em] text-ink-dim">Base complète</span>
+            <span className="font-mono text-[9px] uppercase tracking-[.18em] text-ink-dim">{category === "all" ? "Base complète" : CATEGORY_LABELS[category]}</span>
             <span className="text-[10px] text-ink-dim">{loading ? "Recherche…" : `${results.length}${results.length === 150 ? "+" : ""} résultats`}</span>
           </div>
           <div className="max-h-[min(68vh,560px)] overflow-y-auto p-2">

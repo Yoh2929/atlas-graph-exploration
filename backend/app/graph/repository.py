@@ -157,11 +157,13 @@ def get_neighbors(session: Session, node_id: str):
     return {"nodes": list(nodes.values()), "edges": edges}
 
 
-def search_nodes(session: Session, q: str, limit: int = 100):
+def search_nodes(session: Session, q: str, category: Optional[str] = None, limit: int = 100):
     query = f"""
         MATCH (n:Concept)
-        WHERE toLower(n.label) CONTAINS toLower($q)
-           OR toLower(coalesce(n.description, '')) CONTAINS toLower($q)
+        WHERE ($q = ''
+           OR toLower(n.label) CONTAINS toLower($q)
+           OR toLower(coalesce(n.description, '')) CONTAINS toLower($q))
+          AND ($category IS NULL OR n.category = $category)
         OPTIONAL MATCH (n)-[r:RELATED]-()
         WITH n, count(r) AS degree,
              CASE
@@ -174,7 +176,10 @@ def search_nodes(session: Session, q: str, limit: int = 100):
         ORDER BY relevance DESC, degree DESC, n.label
         LIMIT $limit
     """
-    return [_format_node(dict(row)) for row in session.run(query, q=q, limit=limit)]
+    return [
+        _format_node(dict(row))
+        for row in session.run(query, q=q, category=category, limit=limit)
+    ]
 
 
 def create_node(session: Session, label: str, category: str, description: str = ""):

@@ -19,6 +19,7 @@ export function useNode(nodeId:string){
  const [node,setNode]=useState<NodeDetail|null>(null);
  const [neighbors,setNeighbors]=useState<any[]>([]);
  const [loading,setLoading]=useState(true);
+ const [resolvedId,setResolvedId]=useState<string|null>(null);
 
 
 
@@ -39,6 +40,7 @@ export function useNode(nodeId:string){
 
 
     setNode(detail);
+    setResolvedId(nodeId);
 
 
     const rows = graph.edges.map(
@@ -97,9 +99,9 @@ export function useNode(nodeId:string){
 
 
  return {
-  node,
-  neighbors,
-  loading
+  node: resolvedId === nodeId ? node : null,
+  neighbors: resolvedId === nodeId ? neighbors : [],
+  loading: loading || resolvedId !== nodeId
  };
 
 }
