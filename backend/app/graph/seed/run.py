@@ -17,8 +17,10 @@ from .writer import publish_snapshot
 def run(*, dry_run: bool = False) -> None:
     settings = SeedSettings()
     print("Atlas seed v3 - graphe mathematique relie et source", flush=True)
+    node_budget = str(settings.max_nodes) if settings.max_nodes else "illimite"
+    edge_budget = str(settings.max_edges) if settings.max_edges else "illimite"
     print(
-        f"Budget: {settings.max_nodes} noeuds, {settings.max_edges} relations, "
+        f"Budget: {node_budget} noeuds, {edge_budget} relations, "
         f"profondeur Wikipedia {settings.wikipedia_depth}",
         flush=True,
     )

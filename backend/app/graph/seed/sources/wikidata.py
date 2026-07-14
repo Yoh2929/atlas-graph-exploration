@@ -123,38 +123,48 @@ class WikidataSource:
         self.client = client
         self.settings = settings
 
-    def discover_notable_mathematicians(self, limit: int) -> list[DiscoveredEntity]:
+    def discover_notable_mathematicians(self, limit: int | None) -> list[DiscoveredEntity]:
         # Le nombre de sitelinks est un signal Wikimedia transparent et
         # reproductible de couverture encyclopédique, pas une liste éditée à
         # la main dans Atlas.
-        query = f"""
-        SELECT DISTINCT ?person ?personLabel ?article ?sitelinks WHERE {{
-          ?person wdt:P106 wd:Q170790;
-                  wikibase:sitelinks ?sitelinks.
-          ?article schema:about ?person;
-                   schema:isPartOf <https://en.wikipedia.org/>.
-          SERVICE wikibase:label {{ bd:serviceParam wikibase:language "fr,en". }}
-        }}
-        ORDER BY DESC(?sitelinks)
-        LIMIT {int(limit)}
-        """
-        data = self.client.get_json(
-            SPARQL_URL,
-            {"query": query, "format": "json"},
-            "wikidata-notable-mathematicians",
-        )
         result = []
-        for binding in data.get("results", {}).get("bindings", []):
-            entity_url = binding.get("person", {}).get("value", "")
-            qid = entity_url.rsplit("/", 1)[-1]
-            article = binding.get("article", {}).get("value", "")
-            if qid.startswith("Q") and article:
-                result.append(DiscoveredEntity(
-                    external_id=qid,
-                    title=binding.get("personLabel", {}).get("value", qid),
-                    category="person",
-                    source_url=article,
-                ))
+        page_size = min(limit, 1000) if limit is not None else 1000
+        offset = 0
+        while limit is None or len(result) < limit:
+            requested = min(page_size, limit - len(result)) if limit is not None else page_size
+            query = f"""
+            SELECT DISTINCT ?person ?personLabel ?article ?sitelinks WHERE {{
+              ?person wdt:P106 wd:Q170790;
+                      wikibase:sitelinks ?sitelinks.
+              ?article schema:about ?person;
+                       schema:isPartOf <https://en.wikipedia.org/>.
+              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "fr,en". }}
+            }}
+            ORDER BY DESC(?sitelinks) ?person
+            LIMIT {requested}
+            OFFSET {offset}
+            """
+            data = self.client.get_json(
+                SPARQL_URL,
+                {"query": query, "format": "json"},
+                "wikidata-notable-mathematicians",
+            )
+            bindings = data.get("results", {}).get("bindings", [])
+            for binding in bindings:
+                entity_url = binding.get("person", {}).get("value", "")
+                qid = entity_url.rsplit("/", 1)[-1]
+                article = binding.get("article", {}).get("value", "")
+                if qid.startswith("Q") and article:
+                    result.append(DiscoveredEntity(
+                        external_id=qid,
+                        title=binding.get("personLabel", {}).get("value", qid),
+                        category="person",
+                        source_url=article,
+                    ))
+            if len(bindings) < requested:
+                break
+            offset += requested
+            print(f"  Wikidata/Wikipedia: {len(result)} mathematiciens charges...", flush=True)
         print(f"  Wikidata/Wikipedia: {len(result)} mathematiciens majeurs retenus", flush=True)
         return result
 
@@ -204,33 +214,42 @@ class WikidataSource:
                     occurrences[target_id] += 1
         return sorted(score, key=lambda qid: (-score[qid], -occurrences[qid], qid))
 
-    def _reverse_eponym_candidates(self, person_ids: list[str], budget: int) -> list[str]:
-        if not person_ids or budget <= 0:
+    def _reverse_eponym_candidates(self, person_ids: list[str], budget: int | None) -> list[str]:
+        if not person_ids or budget == 0:
             return []
-        values = " ".join(f"wd:{qid}" for qid in person_ids)
-        query = f"""
-        SELECT DISTINCT ?item ?person ?sitelinks WHERE {{
-          VALUES ?person {{ {values} }}
-          ?item wdt:P138 ?person;
-                wikibase:sitelinks ?sitelinks.
-          ?article schema:about ?item;
-                   schema:isPartOf <https://en.wikipedia.org/>.
-        }}
-        ORDER BY ?person DESC(?sitelinks)
-        LIMIT {max(200, min(5000, budget * 8))}
-        """
-        data = self.client.get_json(
-            SPARQL_URL,
-            {"query": query, "format": "json"},
-            "wikidata-reverse-eponyms",
-        )
         by_person: dict[str, list[tuple[int, str]]] = defaultdict(list)
-        for binding in data.get("results", {}).get("bindings", []):
-            qid = binding.get("item", {}).get("value", "").rsplit("/", 1)[-1]
-            person_id = binding.get("person", {}).get("value", "").rsplit("/", 1)[-1]
-            sitelinks = int(binding.get("sitelinks", {}).get("value", "0"))
-            if qid.startswith("Q") and person_id.startswith("Q"):
-                by_person[person_id].append((sitelinks, qid))
+        for person_batch in _chunks(person_ids, 100):
+            values = " ".join(f"wd:{qid}" for qid in person_batch)
+            page_size = 5000 if budget is None else max(200, min(5000, budget * 8))
+            offset = 0
+            while True:
+                query = f"""
+                SELECT DISTINCT ?item ?person ?sitelinks WHERE {{
+                  VALUES ?person {{ {values} }}
+                  ?item wdt:P138 ?person;
+                        wikibase:sitelinks ?sitelinks.
+                  ?article schema:about ?item;
+                           schema:isPartOf <https://en.wikipedia.org/>.
+                }}
+                ORDER BY ?person DESC(?sitelinks) ?item
+                LIMIT {page_size}
+                OFFSET {offset}
+                """
+                data = self.client.get_json(
+                    SPARQL_URL,
+                    {"query": query, "format": "json"},
+                    "wikidata-reverse-eponyms",
+                )
+                bindings = data.get("results", {}).get("bindings", [])
+                for binding in bindings:
+                    qid = binding.get("item", {}).get("value", "").rsplit("/", 1)[-1]
+                    person_id = binding.get("person", {}).get("value", "").rsplit("/", 1)[-1]
+                    sitelinks = int(binding.get("sitelinks", {}).get("value", "0"))
+                    if qid.startswith("Q") and person_id.startswith("Q"):
+                        by_person[person_id].append((sitelinks, qid))
+                if budget is not None or len(bindings) < page_size:
+                    break
+                offset += page_size
 
         # Tourniquet : les concepts de Newton ou Euler ne doivent pas absorber
         # tout le budget au détriment de Hilbert, Fourier ou Noether.
@@ -240,7 +259,8 @@ class WikidataSource:
             for person_id, items in by_person.items()
         }
         depth = 0
-        while len(result) < budget * 3:
+        target = budget * 3 if budget is not None else None
+        while target is None or len(result) < target:
             added = False
             for person_id in person_ids:
                 items = ranked.get(person_id, [])
@@ -299,29 +319,38 @@ class WikidataSource:
         if rejected_non_people:
             print(f"  Filtre personnes: {len(rejected_non_people)} pages-index/ecarts retires", flush=True)
 
-        expansion_budget = max(0, self.settings.max_nodes - len(entities))
+        expansion_budget = (
+            max(0, self.settings.max_nodes - len(entities))
+            if self.settings.max_nodes else None
+        )
         reverse_candidates = self._reverse_eponym_candidates(
             [qid for qid, entity in entities.items() if _is_human(entity)],
             expansion_budget,
         )
         accepted_expansions: list[str] = []
-        first_wave_limit = max(1, int(expansion_budget * 0.70)) if expansion_budget else 0
+        first_wave_limit = (
+            max(1, int(expansion_budget * 0.70))
+            if expansion_budget is not None and expansion_budget > 0 else expansion_budget
+        )
 
-        def accept_wave(limit: int) -> None:
-            remaining = limit - len(accepted_expansions)
-            if remaining <= 0:
+        def accept_wave(limit: int | None) -> None:
+            remaining = limit - len(accepted_expansions) if limit is not None else None
+            if remaining is not None and remaining <= 0:
                 return
             outgoing = self._expansion_candidates(entities, set(entities))
             candidates = [qid for qid in reverse_candidates if qid not in entities]
             candidates.extend(qid for qid in outgoing if qid not in candidates)
-            pool = candidates[:max(remaining * 4, 50)]
+            pool = candidates if remaining is None else candidates[:max(remaining * 4, 50)]
             loaded = self.entities(pool) if pool else {}
             # À priorité de relation égale, les personnes passent avant les
             # concepts intermédiaires : c'est le cœur de la navigation Atlas.
             ordered = sorted(pool, key=lambda qid: (not _is_human(loaded.get(qid, {})), pool.index(qid)))
             for qid in ordered:
                 entity = loaded.get(qid)
-                if entity and _wikipedia_url(entity) and len(accepted_expansions) < limit:
+                if (
+                    entity and _wikipedia_url(entity)
+                    and (limit is None or len(accepted_expansions) < limit)
+                ):
                     entities[qid] = entity
                     accepted_expansions.append(qid)
 
@@ -391,7 +420,7 @@ class WikidataSource:
                     revision_id=str(entities[source_id].get("lastrevid", "")),
                 )],
             ))
-            if len(edges) >= self.settings.max_edges:
+            if self.settings.max_edges and len(edges) >= self.settings.max_edges:
                 break
 
         print(

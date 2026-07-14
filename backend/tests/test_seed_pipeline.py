@@ -73,6 +73,14 @@ class WikidataSourceTests(unittest.TestCase):
 
 
 class ValidationAndWriterTests(unittest.TestCase):
+    def test_zero_budgets_mean_unlimited(self):
+        settings = SeedSettings(max_nodes=0, max_edges=0)
+        settings.validate()
+        nodes = [SeedNode(f"Q{index}", f"Node {index}", "domain") for index in range(60)]
+        report = validate_snapshot(SeedSnapshot("run", "now", nodes, []), settings)
+        self.assertTrue(report.valid)
+        self.assertFalse(any("budget exceeded" in error.lower() for error in report.errors))
+
     def test_valid_snapshot_serializes_nested_provenance_for_neo4j(self):
         evidence = Evidence("wikidata", "Q1", "https://wikidata/Q1", "2026-01-01T00:00:00Z")
         snapshot = SeedSnapshot(

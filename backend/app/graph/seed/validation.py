@@ -31,9 +31,9 @@ def validate_snapshot(snapshot: SeedSnapshot, settings: SeedSettings) -> Validat
     duplicate_nodes = [key for key, count in Counter(node_ids).items() if count > 1]
     if duplicate_nodes:
         errors.append(f"Duplicate node ids: {duplicate_nodes[:10]}")
-    if len(snapshot.nodes) > settings.max_nodes:
+    if settings.max_nodes and len(snapshot.nodes) > settings.max_nodes:
         errors.append(f"Node budget exceeded: {len(snapshot.nodes)} > {settings.max_nodes}")
-    if len(snapshot.edges) > settings.max_edges:
+    if settings.max_edges and len(snapshot.edges) > settings.max_edges:
         errors.append(f"Edge budget exceeded: {len(snapshot.edges)} > {settings.max_edges}")
 
     dangling = [edge.id for edge in snapshot.edges if edge.source not in node_set or edge.target not in node_set]
@@ -55,7 +55,8 @@ def validate_snapshot(snapshot: SeedSnapshot, settings: SeedSettings) -> Validat
     isolated = node_set - {edge.source for edge in snapshot.edges} - {edge.target for edge in snapshot.edges}
     if snapshot.nodes and len(isolated) / len(snapshot.nodes) > 0.75:
         warnings.append(f"High isolated-node ratio: {len(isolated)}/{len(snapshot.nodes)}")
-    if len(snapshot.nodes) < min(50, settings.max_nodes):
+    expected_minimum = min(50, settings.max_nodes) if settings.max_nodes else 50
+    if len(snapshot.nodes) < expected_minimum:
         warnings.append("The resulting corpus is unexpectedly small")
 
     return ValidationReport(

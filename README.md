@@ -27,9 +27,9 @@ secret JWT fournis par défaut.
 ```powershell
 .\dev-up.ps1                              # démarrage normal
 .\dev-up.ps1 -SkipBuild                   # démarrage quotidien rapide
-.\dev-up.ps1 -Seed                        # reconstruction et publication complète
+.\dev-up.ps1 -Seed                        # reconstruction complète, sans plafond global
 .\dev-up.ps1 -SeedDryRun                  # contrôle rapide, 250 nœuds
-.\dev-up.ps1 -SeedDryRun -SeedLimit 2000  # contrôle complet
+.\dev-up.ps1 -SeedDryRun -SeedLimit 2000  # contrôle borné personnalisé
 .\dev-up.ps1 -SkipBuild -FollowLogs       # suivi des journaux
 ```
 
@@ -40,6 +40,10 @@ secret JWT fournis par défaut.
 Les traces du lanceur sont conservées dans `logs/`. Les snapshots et rapports
 du seed se trouvent dans `backend/seed-artifacts/` et les réponses distantes
 réutilisables dans `backend/.seed-cache/`.
+
+Le seed normal n'impose aucune limite globale de nœuds ou de relations. Son
+périmètre reste défini par les racines et la profondeur Wikipedia. `-SeedLimit`
+sert uniquement à demander volontairement un corpus borné.
 
 ## Expérience de navigation
 

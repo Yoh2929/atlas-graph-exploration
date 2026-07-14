@@ -111,7 +111,7 @@ try {
         $effectiveLimit = if ($SeedLimit -gt 0) { $SeedLimit } else { 250 }
         $edgeLimit = [Math]::Max(1000, $effectiveLimit * 8)
         Write-Host "  Dry-run: budget $effectiveLimit noeuds / $edgeLimit relations"
-        Write-Host "  Pour tester les 2000 noeuds: .\dev-up.ps1 -SeedDryRun -SeedLimit 2000"
+        Write-Host "  Pour tester davantage: .\dev-up.ps1 -SeedDryRun -SeedLimit 2000"
         Invoke-Compose exec -T `
             -e "ATLAS_SEED_MAX_NODES=$effectiveLimit" `
             -e "ATLAS_SEED_MAX_EDGES=$edgeLimit" `
@@ -126,7 +126,11 @@ try {
                 -e "ATLAS_SEED_MAX_EDGES=$edgeLimit" `
                 backend python -u -m app.graph.seed.run
         } else {
-            Invoke-Compose exec -T backend python -u -m app.graph.seed.run
+            Write-Host "  Aucun plafond global de noeuds ou relations."
+            Invoke-Compose exec -T `
+                -e "ATLAS_SEED_MAX_NODES=0" `
+                -e "ATLAS_SEED_MAX_EDGES=0" `
+                backend python -u -m app.graph.seed.run
         }
     } else {
         Write-Host "  Seed ignore: Neo4j contient deja $count noeuds. Utilise .\dev-up.ps1 -Seed pour forcer."

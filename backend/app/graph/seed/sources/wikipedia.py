@@ -71,11 +71,11 @@ class WikipediaSource:
             if not continuation:
                 return links
 
-    def _crawl_anchor(self, anchor: WikipediaRoot, budget: int) -> dict[str, str]:
+    def _crawl_anchor(self, anchor: WikipediaRoot, budget: int | None) -> dict[str, str]:
         pages: dict[str, str] = {}
         queue = deque([(anchor.title, 0)])
         visited = set()
-        while queue and len(pages) < budget:
+        while queue and (budget is None or len(pages) < budget):
             title, depth = queue.popleft()
             if title in visited:
                 continue
@@ -87,23 +87,24 @@ class WikipediaSource:
                     queue.append((linked_title, depth + 1))
                 elif not is_index:
                     pages[linked_title] = anchor.category
-                if len(pages) >= budget:
+                if budget is not None and len(pages) >= budget:
                     break
         return pages
 
-    def _crawl_root(self, root: WikipediaRoot, budget: int) -> dict[str, str]:
+    def _crawl_root(self, root: WikipediaRoot, budget: int | None) -> dict[str, str]:
         pages: dict[str, str] = {}
         queue = deque([(root.title, 0)])
         visited = set()
-        per_category_budget = max(10, budget // 20)
-        while queue and len(pages) < budget:
+        per_category_budget = max(10, budget // 20) if budget is not None else None
+        while queue and (budget is None or len(pages) < budget):
             category, depth = queue.popleft()
             if category in visited:
                 continue
             visited.add(category)
             if len(visited) == 1 or len(visited) % 10 == 0:
                 print(
-                    f"    {root.category}: {len(visited)} categories visitees, {len(pages)}/{budget} pages",
+                    f"    {root.category}: {len(visited)} categories visitees, "
+                    f"{len(pages)}/{budget if budget is not None else 'illimite'} pages",
                     flush=True,
                 )
             pages_from_category = 0
@@ -111,7 +112,7 @@ class WikipediaSource:
                 namespace = member.get("ns")
                 title = member.get("title", "")
                 if namespace == 0:
-                    if pages_from_category < per_category_budget:
+                    if per_category_budget is None or pages_from_category < per_category_budget:
                         pages[title] = root.category
                         pages_from_category += 1
                 elif namespace == 14 and depth < min(
@@ -119,7 +120,7 @@ class WikipediaSource:
                     1 if root.category == "domain" else self.settings.wikipedia_depth,
                 ):
                     queue.append((title, depth + 1))
-                if len(pages) >= budget:
+                if budget is not None and len(pages) >= budget:
                     break
         return pages
 
@@ -151,15 +152,21 @@ class WikipediaSource:
 
     def discover(self, budget: int | None = None) -> list[DiscoveredEntity]:
         started = monotonic()
-        budget = budget or self.settings.max_nodes
-        anchor_budget = min(budget // 3, max(0, budget - len(self.settings.roots)))
-        category_budget = budget - anchor_budget
-        per_root = max(1, category_budget // len(self.settings.roots))
+        if budget is None and self.settings.max_nodes:
+            budget = self.settings.max_nodes
+        if budget is None:
+            anchor_budget = None
+            per_root = None
+        else:
+            anchor_budget = min(budget // 3, max(0, budget - len(self.settings.roots)))
+            category_budget = budget - anchor_budget
+            per_root = max(1, category_budget // len(self.settings.roots))
         title_categories: dict[str, str] = {}
         for root_index, root in enumerate(self.settings.roots, start=1):
             root_started = monotonic()
             print(
-                f"  [{root_index}/{len(self.settings.roots)}] {root.title} -> {root.category} (budget {per_root})",
+                f"  [{root_index}/{len(self.settings.roots)}] {root.title} -> {root.category} "
+                f"(budget {per_root if per_root is not None else 'illimite'})",
                 flush=True,
             )
             root_pages = self._crawl_root(root, per_root)
@@ -169,8 +176,11 @@ class WikipediaSource:
                 if current is None or CATEGORY_PRIORITY[category] > CATEGORY_PRIORITY[current]:
                     title_categories[title] = category
 
-        if self.settings.anchors and anchor_budget:
-            per_anchor = max(1, anchor_budget // len(self.settings.anchors))
+        if self.settings.anchors and (anchor_budget is None or anchor_budget > 0):
+            per_anchor = (
+                max(1, anchor_budget // len(self.settings.anchors))
+                if anchor_budget is not None else None
+            )
             print(f"  Parcours de {len(self.settings.anchors)} pages-index fiables...", flush=True)
             for anchor in self.settings.anchors:
                 anchor_pages = self._crawl_anchor(anchor, per_anchor)
@@ -196,7 +206,7 @@ class WikipediaSource:
             previous = by_qid.get(qid)
             if previous is None or CATEGORY_PRIORITY[category] > CATEGORY_PRIORITY[previous.category]:
                 by_qid[qid] = entity
-            if len(by_qid) >= budget:
+            if budget is not None and len(by_qid) >= budget:
                 break
         print(
             f"  Wikipedia termine: {len(by_qid)} entites uniques en {monotonic() - started:.1f}s",

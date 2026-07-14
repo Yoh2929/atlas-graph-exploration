@@ -57,8 +57,10 @@ def _anchors() -> tuple[WikipediaRoot, ...]:
 
 @dataclass(frozen=True)
 class SeedSettings:
-    max_nodes: int = field(default_factory=lambda: _integer("ATLAS_SEED_MAX_NODES", 2000))
-    max_edges: int = field(default_factory=lambda: _integer("ATLAS_SEED_MAX_EDGES", 15000))
+    # 0 means unlimited. The traversal remains bounded by its configured
+    # Wikipedia depth and by the finite result sets returned by the sources.
+    max_nodes: int = field(default_factory=lambda: _integer("ATLAS_SEED_MAX_NODES", 0))
+    max_edges: int = field(default_factory=lambda: _integer("ATLAS_SEED_MAX_EDGES", 0))
     wikipedia_depth: int = field(default_factory=lambda: _integer("ATLAS_SEED_WIKIPEDIA_DEPTH", 2))
     wikipedia_language: str = field(default_factory=lambda: os.getenv("ATLAS_SEED_WIKIPEDIA_LANGUAGE", "en"))
     label_languages: tuple[str, ...] = ("fr", "en")
@@ -76,8 +78,8 @@ class SeedSettings:
     ))
 
     def validate(self) -> None:
-        if self.max_nodes < 1 or self.max_edges < 1:
-            raise ValueError("Seed budgets must be positive")
+        if self.max_nodes < 0 or self.max_edges < 0:
+            raise ValueError("Seed budgets must be positive, or 0 for unlimited")
         if not 0 <= self.wikipedia_depth <= 6:
             raise ValueError("Wikipedia depth must be between 0 and 6")
         valid_categories = {"domain", "theorem", "conjecture", "problem", "algorithm", "person"}
