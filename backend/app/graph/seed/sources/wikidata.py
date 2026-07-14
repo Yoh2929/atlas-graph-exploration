@@ -323,10 +323,17 @@ class WikidataSource:
             max(0, self.settings.max_nodes - len(entities))
             if self.settings.max_nodes else None
         )
-        reverse_candidates = self._reverse_eponym_candidates(
-            [qid for qid, entity in entities.items() if _is_human(entity)],
-            expansion_budget,
-        )
+        if expansion_budget is None:
+            # In unlimited mode the Wikipedia corpus is already exhaustive for
+            # the configured depth. Reverse SPARQL expansion would duplicate
+            # that work and overload the public query endpoint.
+            reverse_candidates = []
+            print("  Eponymes inverses couverts par le corpus complet; scan SPARQL ignore.", flush=True)
+        else:
+            reverse_candidates = self._reverse_eponym_candidates(
+                [qid for qid, entity in entities.items() if _is_human(entity)],
+                expansion_budget,
+            )
         accepted_expansions: list[str] = []
         first_wave_limit = (
             max(1, int(expansion_budget * 0.70))

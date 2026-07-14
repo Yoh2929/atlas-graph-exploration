@@ -47,9 +47,18 @@ class SeedPipeline:
                 flush=True,
             )
         discovered = self.wikipedia.discover(wikipedia_budget)
-        people_target = notable_people_budget if notable_people_budget is not None else "tous les"
-        print(f"  Selection de {people_target} mathematiciens avec article Wikipedia...", flush=True)
-        notable_people = self.wikidata.discover_notable_mathematicians(notable_people_budget)
+        if unlimited:
+            # The complete Wikipedia crawl already includes Category:Mathematicians.
+            # A second unbounded SPARQL scan is redundant and regularly times out on
+            # the public Wikidata Query Service.
+            print("  Mathematiciens deja inclus par le parcours Wikipedia complet.", flush=True)
+            notable_people = []
+        else:
+            print(
+                f"  Selection de {notable_people_budget} mathematiciens avec article Wikipedia...",
+                flush=True,
+            )
+            notable_people = self.wikidata.discover_notable_mathematicians(notable_people_budget)
         by_id = {entity.external_id: entity for entity in (*discovered, *notable_people)}
         discovered = list(by_id.values())
         if discovery_budget is not None:
