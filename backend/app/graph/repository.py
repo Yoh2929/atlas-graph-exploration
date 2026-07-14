@@ -40,6 +40,8 @@ def format_properties(row):
 
 
 def _format_node(row: dict) -> dict:
+    label = row.get("label") or row.get("id") or ""
+    row["label"] = label[:1].upper() + label[1:]
     row["properties"] = format_properties(row)
     for key in ("wikidata_url", "wikipedia_url", "wikidata_id", "wikidata_revision_id", "discovered_from"):
         row.pop(key, None)

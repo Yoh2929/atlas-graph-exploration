@@ -13,7 +13,20 @@ export default function GraphCanvas3D({ data, selectedId, focusIds = new Set(), 
   const [size,setSize] = useState({width:window.innerWidth,height:window.innerHeight});
   const graphData = useMemo(() => ({ nodes:data.nodes.map((n) => ({...n})) as Atlas3DNode[], links:data.edges.map((e) => ({source:e.source,target:e.target,label:e.label||e.relation,relation:e.relation})) as Atlas3DLink[] }), [data]);
   useEffect(() => { if (!containerRef.current) return; const observer = new ResizeObserver(([entry]) => setSize({width:Math.round(entry.contentRect.width),height:Math.round(entry.contentRect.height)})); observer.observe(containerRef.current); return () => observer.disconnect(); }, []);
-  function focusCamera(node: Atlas3DNode) { const distance=115; const length=Math.hypot(node.x||0,node.y||0,node.z||0)||1; const ratio=1+distance/length; graphRef.current?.cameraPosition({x:(node.x||0)*ratio,y:(node.y||0)*ratio,z:(node.z||0)*ratio},{x:node.x||0,y:node.y||0,z:node.z||0},900); }
+  function focusCamera(node: Atlas3DNode) {
+    const x=node.x||0,y=node.y||0,z=node.z||0;
+    const camera=graphRef.current?.camera();
+    if(!camera) return;
+    let dx=camera.position.x-x,dy=camera.position.y-y,dz=camera.position.z-z;
+    let length=Math.hypot(dx,dy,dz);
+    if(length<1){dx=0;dy=0;dz=1;length=1;}
+    const distance=190;
+    graphRef.current?.cameraPosition(
+      {x:x+(dx/length)*distance,y:y+(dy/length)*distance,z:z+(dz/length)*distance},
+      {x,y,z},
+      750,
+    );
+  }
   useEffect(() => { if(!selectedId) return; const timer=window.setTimeout(() => { const node=graphData.nodes.find((item) => item.id===selectedId); if(node && Number.isFinite(node.x)) focusCamera(node); },60); return () => window.clearTimeout(timer); },[selectedId,graphData]);
   const nodeColor = (node: NodeObject) => { const n=node as Atlas3DNode; if (favoriteIds.has(n.id)) return "#ffd166"; if (focusIds.size && !focusIds.has(n.id)) return "#151b28"; return CATEGORY_COLORS[n.category] || "#8fa3c7"; };
   const linkColor = (link: object) => { const l=link as Atlas3DLink; if (focusIds.size && !(focusIds.has(idOf(l.source))&&focusIds.has(idOf(l.target)))) return "#0d121c"; return "#52617c"; };
