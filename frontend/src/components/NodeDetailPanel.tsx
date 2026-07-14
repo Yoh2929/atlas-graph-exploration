@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CATEGORY_COLORS } from "../constants";
 import { useBiography } from "../hooks/useBiography";
@@ -25,19 +25,43 @@ interface NeighborRow {
   direction: "in" | "out";
 }
 
+const normalize = (value: string) => value
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLocaleLowerCase("fr");
+
 export default function NodeDetailPanel({ nodeId, user, onSelectNode, onClose, favorite = false, onToggleFavorite }: Props) {
   const { node, neighbors, loading } = useNode(nodeId);
   const { biography, loading: biographyLoading } = useBiography(nodeId);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [relationQuery, setRelationQuery] = useState("");
+
+  useEffect(() => {
+    setBioExpanded(false);
+    setRelationQuery("");
+  }, [nodeId]);
+
+  const rows = neighbors as NeighborRow[];
+  const filteredRows = useMemo(() => {
+    const query = normalize(relationQuery.trim());
+    if (!query) return rows;
+    return rows.filter((item) => normalize([
+      item.label,
+      item.displayRelationLabel,
+      item.relation,
+      item.category || "",
+    ].join(" ")).includes(query));
+  }, [relationQuery, rows]);
+  const people = filteredRows.filter((item) => item.category === "person");
+  const concepts = filteredRows.filter((item) => item.category !== "person");
+  const totalPeople = rows.filter((item) => item.category === "person").length;
+  const totalConcepts = rows.length - totalPeople;
 
   if (loading || !node) {
     return <aside className="grid h-full place-items-center border-l border-white/10 bg-surface"><div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-category-algorithm" /></aside>;
   }
 
   const color = CATEGORY_COLORS[node.category];
-  const rows = neighbors as NeighborRow[];
-  const people = rows.filter((item) => item.category === "person");
-  const concepts = rows.filter((item) => item.category !== "person");
   const sources = Array.isArray(node.properties.sources) ? (node.properties.sources as SourceLink[]).filter((source) => source?.url) : [];
   const wikipedia = sources.find((source) => source.provider === "Wikipedia");
   const wikidata = sources.find((source) => source.provider === "Wikidata");
@@ -96,8 +120,30 @@ export default function NodeDetailPanel({ nodeId, user, onSelectNode, onClose, f
           </div>
         </section>
 
-        {people.length > 0 && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-category-person">Personnes associées</p><span className="text-xs text-ink-dim">{people.length}</span></div><RelationList items={people} /></section>}
-        <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Idées connectées</p><span className="text-xs text-ink-dim">{concepts.length}</span></div>{concepts.length ? <RelationList items={concepts} /> : <p className="text-xs text-ink-dim">Aucune autre relation fiable.</p>}</section>
+        {rows.length > 0 && (
+          <section className="sticky top-[132px] z-[5] -mx-1 rounded-2xl border border-white/[.09] bg-[#111827]/95 p-2 shadow-[0_12px_35px_rgba(0,0,0,.28)] backdrop-blur-xl">
+            <label htmlFor="relation-search" className="sr-only">Filtrer les connexions</label>
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 focus-within:border-[#9eb5ff]/45">
+              <span className="text-sm text-[#9eb5ff]">⌕</span>
+              <input
+                id="relation-search"
+                value={relationQuery}
+                onChange={(event) => setRelationQuery(event.target.value)}
+                placeholder="Filtrer les connexions…"
+                className="h-10 min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-ink-dim"
+              />
+              {relationQuery && (
+                <button onClick={() => setRelationQuery("")} aria-label="Effacer le filtre" className="rounded-md px-1.5 py-1 text-xs text-ink-dim hover:bg-white/10 hover:text-white">✕</button>
+              )}
+            </div>
+            {relationQuery && (
+              <p className="px-2 pt-2 text-[10px] text-ink-dim">{filteredRows.length} connexion{filteredRows.length > 1 ? "s" : ""} trouvée{filteredRows.length > 1 ? "s" : ""}</p>
+            )}
+          </section>
+        )}
+
+        {(people.length > 0 || (!relationQuery && totalPeople > 0)) && <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-category-person">Personnes associées</p><span className="text-xs text-ink-dim">{relationQuery ? `${people.length} / ${totalPeople}` : people.length}</span></div>{people.length ? <RelationList items={people} /> : <p className="text-xs text-ink-dim">Aucune personne ne correspond au filtre.</p>}</section>}
+        <section><div className="mb-2 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-ink-dim">Idées connectées</p><span className="text-xs text-ink-dim">{relationQuery ? `${concepts.length} / ${totalConcepts}` : concepts.length}</span></div>{concepts.length ? <RelationList items={concepts} /> : <p className="text-xs text-ink-dim">{relationQuery ? "Aucune idée ne correspond au filtre." : "Aucune autre relation fiable."}</p>}</section>
 
       </div>
     </aside>
