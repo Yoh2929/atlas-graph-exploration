@@ -25,6 +25,10 @@ class EdgeOut(BaseModel):
 class GraphOut(BaseModel):
     nodes: List[NodeOut]
     edges: List[EdgeOut]
+    total: Optional[int] = None
+    loaded: Optional[int] = None
+    offset: int = 0
+    has_more: bool = False
 
 
 class NodeDetailOut(NodeOut):

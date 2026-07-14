@@ -1,9 +1,9 @@
 import api from "./axios";
 import type { GraphData } from "../types";
 
-export async function fetchGraph(limit?: number): Promise<GraphData> {
+export async function fetchGraph(limit = 500, offset = 0): Promise<GraphData> {
   const { data } = await api.get<GraphData>("/api/graph", {
-    params: limit ? { limit } : undefined,
+    params: { limit, offset },
   });
 
   return data;

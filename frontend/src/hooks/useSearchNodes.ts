@@ -10,11 +10,15 @@ export function useSearchNodes(query: string) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
 
     if (query.trim().length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
+
+    setResults([]);
 
     const timeout = setTimeout(async () => {
 
@@ -26,22 +30,25 @@ export function useSearchNodes(query: string) {
           query.trim()
         );
 
-        setResults(nodes);
+        if (!cancelled) setResults(nodes);
 
       } catch {
 
-        setResults([]);
+        if (!cancelled) setResults([]);
 
       } finally {
 
-        setLoading(false);
+        if (!cancelled) setLoading(false);
 
       }
 
     }, 250);
 
 
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
 
   }, [query]);
 

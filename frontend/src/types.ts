@@ -55,6 +55,10 @@ export interface Biography {
 export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  total?: number;
+  loaded?: number;
+  offset?: number;
+  has_more?: boolean;
 }
 
 export interface NodeDetail extends GraphNode {

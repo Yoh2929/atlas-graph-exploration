@@ -76,17 +76,18 @@ def slugify(text: str) -> str:
     return re.sub(r"[\s_]+", "-", text)
 
 
-def get_full_graph(session: Session, limit: Optional[int] = None):
-    limit_clause = "LIMIT $limit" if limit else ""
+def get_full_graph(session: Session, limit: int = 500, offset: int = 0):
+    total = session.run("MATCH (n:Concept) RETURN count(n) AS total").single()["total"]
     nodes_query = f"""
         MATCH (n:Concept)
         OPTIONAL MATCH (n)-[r:RELATED]-()
         WITH n, count(r) AS degree
         RETURN {NODE_FIELDS}, degree
-        ORDER BY degree DESC, n.label
-        {limit_clause}
+        ORDER BY degree DESC, toLower(n.label), n.id
+        SKIP $offset
+        LIMIT $limit
     """
-    nodes = [_format_node(dict(row)) for row in session.run(nodes_query, limit=limit)]
+    nodes = [_format_node(dict(row)) for row in session.run(nodes_query, limit=limit, offset=offset)]
     node_ids = [node["id"] for node in nodes]
 
     # Les relations sont maintenant contraintes au sous-graphe retourné. Le
@@ -104,7 +105,15 @@ def get_full_graph(session: Session, limit: Optional[int] = None):
         format_edge(dict(row))
         for row in session.run(edges_query, node_ids=node_ids)
     ]
-    return {"nodes": nodes, "edges": edges}
+    loaded = len(nodes)
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "total": total,
+        "loaded": loaded,
+        "offset": offset,
+        "has_more": offset + loaded < total,
+    }
 
 
 def get_node(session: Session, node_id: str) -> Optional[dict]:

@@ -1,7 +1,59 @@
-interface Props { lensLabel: string; onClearLens: () => void; onGenerate: () => void; }
-export default function GraphControls({ lensLabel,onClearLens,onGenerate }: Props) {
-  return <div className="absolute left-3 top-[84px] z-20 flex max-w-[calc(100%-24px)] flex-wrap items-center gap-1.5 sm:left-5">
-    {lensLabel && <button onClick={onClearLens} className="max-w-[220px] truncate rounded-xl bg-white/[.06] px-3 py-1.5 text-[10px] text-[#cbd3e4]" title="Revenir à la vue complète">{lensLabel} <span className="ml-1 opacity-50">×</span></button>}
-    <button onClick={onGenerate} className="rounded-full border border-white/10 bg-[#0c1320]/70 px-3 py-1.5 text-[10px] text-ink-dim shadow-xl backdrop-blur-xl hover:bg-white/[.06] hover:text-ink">Dérive</button>
-  </div>;
+interface Props {
+  lensLabel: string;
+  onClearLens: () => void;
+  onGenerate: () => void;
+  loaded: number;
+  offset: number;
+  total?: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onNext: () => void;
+  onPrevious: () => void;
+}
+
+export default function GraphControls({
+  lensLabel,
+  onClearLens,
+  onGenerate,
+  loaded,
+  offset,
+  total,
+  hasMore,
+  loadingMore,
+  onNext,
+  onPrevious,
+}: Props) {
+  return (
+    <div className="absolute left-3 top-[84px] z-20 flex max-w-[calc(100%-24px)] flex-wrap items-center gap-1.5 sm:left-5">
+      {lensLabel && (
+        <button onClick={onClearLens} className="max-w-[220px] truncate rounded-xl bg-white/[.06] px-3 py-1.5 text-[10px] text-[#cbd3e4]" title="Revenir à la vue complète">
+          {lensLabel} <span className="ml-1 opacity-50">×</span>
+        </button>
+      )}
+      <button onClick={onGenerate} className="rounded-full border border-white/10 bg-[#0c1320]/70 px-3 py-1.5 text-[10px] text-ink-dim shadow-xl backdrop-blur-xl hover:bg-white/[.06] hover:text-ink">
+        Dérive
+      </button>
+      {offset > 0 && (
+        <button
+          onClick={onPrevious}
+          disabled={loadingMore}
+          className="rounded-full border border-white/10 bg-[#0c1320]/70 px-3 py-1.5 text-[10px] text-ink-dim shadow-xl backdrop-blur-xl hover:bg-white/[.06] hover:text-ink disabled:cursor-wait disabled:opacity-60"
+        >
+          ← Lot précédent
+        </button>
+      )}
+      {hasMore && (
+        <button
+          onClick={onNext}
+          disabled={loadingMore}
+          className="rounded-full border border-white/10 bg-[#0c1320]/70 px-3 py-1.5 text-[10px] text-ink-dim shadow-xl backdrop-blur-xl hover:bg-white/[.06] hover:text-ink disabled:cursor-wait disabled:opacity-60"
+        >
+          {loadingMore ? "Chargement…" : "Lot suivant →"}
+        </button>
+      )}
+      <span className="rounded-full bg-[#0c1320]/55 px-2.5 py-1.5 text-[9px] text-ink-dim backdrop-blur-xl">
+        {(offset + 1).toLocaleString("fr-FR")}–{(offset + loaded).toLocaleString("fr-FR")}{total ? ` / ${total.toLocaleString("fr-FR")}` : ""}
+      </span>
+    </div>
+  );
 }

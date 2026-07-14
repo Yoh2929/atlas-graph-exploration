@@ -6,7 +6,7 @@ export async function searchNodes(query: string) {
   const { data } = await api.get("/api/search", {
     params: {
       q: query,
-      limit: 100,
+      limit: 150,
     },
   });
 

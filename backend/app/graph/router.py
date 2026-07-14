@@ -19,8 +19,12 @@ router = APIRouter(prefix="/api", tags=["graph"])
 
 
 @router.get("/graph", response_model=GraphOut)
-def get_graph(limit: Optional[int] = Query(None, ge=1, le=20000), session: Neo4jSession = Depends(get_neo4j_session)):
-    data = repo.get_full_graph(session, limit=limit)
+def get_graph(
+    limit: int = Query(500, ge=50, le=2000),
+    offset: int = Query(0, ge=0),
+    session: Neo4jSession = Depends(get_neo4j_session),
+):
+    data = repo.get_full_graph(session, limit=limit, offset=offset)
     return data
 
 
@@ -58,7 +62,7 @@ def get_biography(node_id: str, session: Neo4jSession = Depends(get_neo4j_sessio
 @router.get("/search", response_model=list[NodeOut])
 def search(
     q: str = Query(min_length=1, max_length=180),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(150, ge=1, le=500),
     session: Neo4jSession = Depends(get_neo4j_session),
 ):
     return repo.search_nodes(session, q, limit=limit)
